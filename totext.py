@@ -1,118 +1,202 @@
-from aiofile import AIOFile, Writer # type: ignore
-import asyncio
-import os
-import sys
+from aiofile import AIOFile, Writer  # type: ignore 
+import asyncio 
+import os 
+import base64 
+import logging 
+from openai import OpenAI  # type: ignore 
 
-# Get the current working directory
-current_directory = os.getcwd()
+ 
+# Configure logging 
 
-# file name
-filename = "extractedText.txt"
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s") 
 
-# full file path
-file_path = os.path.join(current_directory, filename)
+ 
 
-# function to append to a text file
-async def append_to_file(path:str , text:str):
-   
-    try:
-        # open file in append mode
-        async with AIOFile(path, 'a') as afp:  
-            writer = Writer(afp)
+# Get the current working directory 
 
-            # append the text with a newline
-            await writer(f"{text}\n")  
+current_directory = os.getcwd() 
 
-            # Ensure data is flushed to disk
-            await afp.fsync()  
+ 
 
-        print(f"Text appended to {path}")
+# File paths 
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
+filename = "extractedText.txt" 
 
-# async def main():
-#     await append_to_file(file_path, "C# is back-end programing and game development")
-#     await append_to_file(file_path, "JavaScript is for front-end web development")
+file_path = os.path.join(current_directory, filename) 
 
-# asyncio.run(main())
+ 
 
-# Example usage (to be run in an async context):
-# import asyncio
-# asyncio.run(append_to_file("example.txt", "This is the appended text"))
+# Check for OpenAI API key 
+
+openaikey = os.getenv("OPENAIKEY") 
+
+if not openaikey: 
+
+    raise EnvironmentError("OPENAIKEY environment variable not set") 
+
+ 
+
+client = OpenAI(api_key=openaikey) 
+
+ 
+
+# function to append text to a file 
+
+async def append_to_file(path: str, text: str): 
+
+    try: 
+
+        async with AIOFile(path, "a") as afp: 
+
+            writer = Writer(afp) 
+
+            await writer(f"{text}\n") 
+
+            await afp.fsync() 
+
+        logging.info(f"Text appended to {path}") 
+
+    except Exception as e: 
+
+        logging.error(f"Failed to append to file: {e}") 
+
+ 
+
+# encode an image to base64 
+
+async def encode_image(image_path: str) -> str: 
+
+    try: 
+
+        async with AIOFile(image_path, "rb") as image_file: 
+
+            content = await image_file.read() 
+
+        return base64.b64encode(content).decode("utf-8") 
+
+    except Exception as e: 
+
+        logging.error(f"Failed to encode image {image_path}: {e}") 
+
+        return "" 
+
+ 
+
+# Asynchronous function to process the OpenAI API request 
+
+async def analyze_image(image_path: str) -> str: 
+
+    try: 
+
+        base64_image = await encode_image(image_path) 
+
+        if not base64_image: 
+
+            return "Failed to encode image" 
+
+ 
+
+        response = client.chat.completions.create( 
+
+            model="gpt-4o", 
+
+            messages=[ 
+
+                { 
+
+                    "role": "user", 
+
+                    "content": [ 
+
+                        {"type": "text", "text": "Extract the text from this image"}, 
+
+                        { 
+
+                            "type": "image_url", 
+
+                            "image_url": {"url": f"data:image/png;base64,{base64_image}"}, 
+
+                        }, 
+
+                    ], 
+
+                } 
+
+            ], 
+
+        ) 
+
+ 
+
+        text_response = response.choices[0].message.content 
+
+        text_response = text_response.encode("utf-8").decode("utf-8", errors="replace") 
+
+        return text_response.replace("�", "'") 
+
+    except Exception as e: 
+
+        logging.error(f"Failed to analyze image {image_path}: {e}") 
+
+        return "Failed to analyze image" 
+
+ 
+
+# main function 
+
+async def main(): 
+
+    try: 
+
+        create_directory = os.path.join(current_directory, "imagesfolder")
+
+        # Create the directory by skipping errors
+        os.makedirs(create_directory, exist_ok=True)
+
+        images_folder = os.path.join(current_directory, "imagesfolder") 
+
+        if not os.path.exists(images_folder): 
+
+            logging.error(f"Folder not found: {images_folder}") 
+
+            return 
+        
+
+        # count the images
+        total_images =  len(os.listdir(images_folder))
+
+        logging.info(f"Total images to analyze {total_images}")
+ 
 
 
-import base64
-from openai import OpenAI # type: ignore
+        count_images = 0 
 
-openaikey = os.environ["OPENAIKEY"]
+        for each_image in os.listdir(images_folder): 
 
-client = OpenAI(api_key=openaikey)
+            if each_image.endswith(".png"): 
 
+                image_path = os.path.join(images_folder, each_image) 
 
-# full file path
-# fileimage_path = os.path.join(current_directory, filename)
+                result = await analyze_image(image_path) 
 
+                await append_to_file(file_path, result) 
 
-# Asynchronous function to encode the image
-async def encode_image(image_path):
-    async with AIOFile(image_path, "rb") as image_file:
-        content = await image_file.read()
-        return base64.b64encode(content).decode("utf-8")
+                count_images += 1 
 
+                logging.info(f"Image - {count_images}")
 
-# Asynchronous function to process the OpenAI API request
-async def analyze_image(image_path):
-    # Encode the image to base64
-    base64_image = await encode_image(image_path)
-    
-    # Make an asynchronous API call
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract the text from this image"},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                    },
-                ],
-            }
-        ],
-    )
-    
-    # Return the response
-    text_response = response.choices[0].message.content
+ 
 
-    #the text is handled as UTF-8
-    text_response = text_response.encode("utf-8").decode("utf-8", errors="replace")
+        logging.info(f"Processed {count_images} images") 
 
-    if "�" in text_response:
-        text_response.replace("�","'")
+    except Exception as e: 
 
-    return text_response
+        logging.error(f"An error occurred during execution: {e}") 
+
+ 
 
 
 
-# Run the asynchronous function
-async def main():
+if __name__ == "__main__": 
 
-    midnight_folder = os.path.join(current_directory, "midnight")
-
-    count_images = 0
-    for each_image in os.listdir(midnight_folder):
-        if each_image.endswith(".png"):
-
-            result = await analyze_image(midnight_folder + "\\"+ each_image)
-            await append_to_file(file_path, result)
-
-            count_images += 1
-    
-    print(count_images)
-
-
-
-# Start the event loop
-asyncio.run(main())
+    asyncio.run(main()) 
