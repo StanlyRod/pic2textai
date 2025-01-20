@@ -165,7 +165,7 @@ async def main():
         # count the images
         total_images =  len(os.listdir(images_folder))
 
-        logging.info(f"Total images to analyze {total_images}")
+        logging.info(f"Total images to be analyze: {total_images}")
  
 
 
