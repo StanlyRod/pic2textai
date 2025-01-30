@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Get the current working directory 
 current_directory = os.getcwd() 
 
-# File paths 
-filename = "extractedText.txt" 
+# File name
+filename = "extractedtext.txt"
 
 # joining the current directory with the filename
 file_path = os.path.join(current_directory, filename) 
@@ -115,21 +115,21 @@ async def main():
 
         count_images = 0 
         
-        # iterate through each file in the "imagesfolder" directory
+        # Iterate through each file in the "imagesfolder" directory
         for each_image in os.listdir(images_folder): 
             # Check if the file has a ".png" extension
             if each_image.endswith(".png"): 
 
                 image_path = os.path.join(images_folder, each_image)
                 # Analyze the image with the analyze_image function 
-                result = await analyze_image(image_path, "Extract all the text from this images then analyze the info and create a study note") 
+                result = await analyze_image(image_path, "Extract all the text from this images") 
                 # Append the result to a text file
                 await append_to_file(file_path, result) 
 
-                # Increment the counter for each processed images
-                count_images += 1 
+                # Increment the counter for each processed image
+                count_images += 1
 
-                logging.info(f"Image - {count_images}")
+                logging.info(f"Image - {count_images} - analyzed")
 
         logging.info(f"A total of {count_images} images has been processed succesfully") 
     except Exception as e: 
