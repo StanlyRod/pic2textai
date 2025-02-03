@@ -17,9 +17,10 @@ filename = "extractedtext.txt"
 # joining the current directory with the filename
 file_path = os.path.join(current_directory, filename) 
  
-# Check for OpenAI API key 
+ # get openai api key from environmental variable
 openaikey = os.getenv("OPENAIKEY") 
 
+# check for OpenAI API key and raise an exception if the environmental variable is not set
 if not openaikey: 
     raise EnvironmentError("OPENAIKEY environment variable not set") 
 
@@ -33,20 +34,18 @@ async def append_to_file(path: str, text: str):
         async with AIOFile(path, "a") as afp: 
             writer = Writer(afp) 
             await writer(f"{text}\n") 
-            await afp.fsync() 
-
+            await afp.fsync()
         logging.info(f"Text appended to {path}") 
     except Exception as e: 
         logging.error(f"Failed to append to file: {e}") 
 
  
 
-# encode an image to base64 
+# encode image to base64
 async def encode_image(image_path: str) -> str: 
     try: 
         async with AIOFile(image_path, "rb") as image_file: 
-            content = await image_file.read() 
-
+            content = await image_file.read()
         return base64.b64encode(content).decode("utf-8") 
     except Exception as e: 
         logging.error(f"Failed to encode image {image_path}: {e}") 
@@ -131,7 +130,9 @@ async def main():
 
                 logging.info(f"Image - {count_images} - analyzed")
 
-        logging.info(f"A total of {count_images} images has been processed succesfully") 
+        logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
+
+
     except Exception as e: 
         logging.error(f"An error occurred during execution: {e}") 
 
