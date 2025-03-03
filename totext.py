@@ -2,7 +2,10 @@ from aiofile import AIOFile, Writer  # type: ignore
 import asyncio 
 import os 
 import base64 
-import logging 
+import logging
+from rich import print
+from rich.logging import RichHandle
+import sys 
 from openai import OpenAI  # type: ignore 
 
 # Configure logging 
@@ -24,9 +27,7 @@ openaikey = os.getenv("OPENAIKEY")
 if not openaikey: 
     raise EnvironmentError("OPENAIKEY environment variable not set") 
 
-
 client = OpenAI(api_key=openaikey) 
-
 
 # function to append text to a text file 
 async def append_to_file(path: str, text: str): 
@@ -36,6 +37,10 @@ async def append_to_file(path: str, text: str):
             await writer(f"{text}\n") 
             await afp.fsync()
         logging.info(f"Text appended to {path}") 
+    except PermissionError:
+        logging.error(f"Permission denied: Unable to open file or the file is currently in use {path}. Please check file permissions.")
+    except FileNotFoundError:
+        logging.error(f"File not found: {path}. Please ensure the file exists.")
     except Exception as e: 
         logging.error(f"Failed to append to file: {e}") 
 
@@ -88,7 +93,8 @@ async def analyze_image(image_path:str, prompt:str) -> str:
         logging.error(f"Failed to analyze image {image_path}: {e}") 
         return "Failed to analyze image" 
 
- 
+ #if len(sys.argv) > 3:
+    
 
 # main function 
 async def main(): 
@@ -121,7 +127,7 @@ async def main():
 
                 image_path = os.path.join(images_folder, each_image)
                 # Analyze the image with the analyze_image function 
-                result = await analyze_image(image_path, "Extract all the text from this images") 
+                result = await analyze_image(image_path, "Extract all the text from this image an create a study note with the right answer") 
                 # Append the result to a text file
                 await append_to_file(file_path, result) 
 
@@ -132,11 +138,9 @@ async def main():
 
         logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
 
-
     except Exception as e: 
         logging.error(f"An error occurred during execution: {e}") 
 
- 
 if __name__ == "__main__": 
     asyncio.run(main()) 
 
