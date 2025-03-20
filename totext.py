@@ -4,12 +4,15 @@ import os
 import base64 
 import logging
 from rich import print
-from rich.logging import RichHandle
+from rich.logging import RichHandler
 import sys 
 from openai import OpenAI  # type: ignore 
 
 # Configure logging 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s") 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S",handlers=[RichHandler()] ) 
+
+# Create logger
+rich_logging = logging.getLogger("rich_logger")
 
 # Get the current working directory 
 current_directory = os.getcwd() 
@@ -36,13 +39,13 @@ async def append_to_file(path: str, text: str):
             writer = Writer(afp) 
             await writer(f"{text}\n") 
             await afp.fsync()
-        logging.info(f"Text appended to {path}") 
+        rich_logging.info(f"Text appended to {path}") 
     except PermissionError:
-        logging.error(f"Permission denied: Unable to open file or the file is currently in use {path}. Please check file permissions.")
+        rich_logging.error(f"Permission denied: Unable to open file or the file is currently in use {path}. Please check file permissions.")
     except FileNotFoundError:
-        logging.error(f"File not found: {path}. Please ensure the file exists.")
+        rich_logging.error(f"File not found: {path}. Please ensure the file exists.")
     except Exception as e: 
-        logging.error(f"Failed to append to file: {e}") 
+        rich_logging.error(f"Failed to append to file: {e}") 
 
  
 
@@ -53,13 +56,13 @@ async def encode_image(image_path: str) -> str:
             content = await image_file.read()
         return base64.b64encode(content).decode("utf-8") 
     except Exception as e: 
-        logging.error(f"Failed to encode image {image_path}: {e}") 
+        rich_logging.error(f"Failed to encode image {image_path}: {e}") 
         return "" 
 
  
 
 # Asynchronous function to process the OpenAI API request 
-async def analyze_image(image_path:str, prompt:str) -> str: 
+async def analyze_image(image_path: str, prompt: str) -> str: 
     try: 
         # call the encode_image function to encode the image to base64
         base64_image = await encode_image(image_path) 
@@ -90,14 +93,13 @@ async def analyze_image(image_path:str, prompt:str) -> str:
         return text_response.replace("�", "'") 
 
     except Exception as e: 
-        logging.error(f"Failed to analyze image {image_path}: {e}") 
+        rich_logging.error(f"Failed to analyze image {image_path}: {e}") 
         return "Failed to analyze image" 
 
  #if len(sys.argv) > 3:
-    
 
-# main function 
-async def main(): 
+
+async def execute(prompt: str = "Extract all the text from this image"):
     try: 
         #joining the current directory with the folder
         create_directory = os.path.join(current_directory, "imagesfolder")
@@ -109,14 +111,14 @@ async def main():
 
         # Check if the "imagesfolder" directory exists
         if not os.path.exists(images_folder): 
-            logging.error(f"Folder not found: {images_folder}") 
+            rich_logging.error(f"Folder not found: {images_folder}") 
             return # Exit the function if the folder doesn't exist
 
         # Count the total number of files in the "imagesfolder" directory
         total_images =  len(os.listdir(images_folder))
 
         # Log the total number of images to be analyzed
-        logging.info(f"Total images to be analyze: {total_images}")
+        rich_logging.info(f"Total images to be analyze: {total_images}")
 
         count_images = 0 
         
@@ -127,19 +129,29 @@ async def main():
 
                 image_path = os.path.join(images_folder, each_image)
                 # Analyze the image with the analyze_image function 
-                result = await analyze_image(image_path, "Extract all the text from this image an create a study note with the right answer") 
+                result = await analyze_image(image_path, prompt) 
                 # Append the result to a text file
                 await append_to_file(file_path, result) 
 
                 # Increment the counter for each processed image
                 count_images += 1
 
-                logging.info(f"Image - {count_images} - analyzed")
+                rich_logging.info(f"Image - {count_images} - analyzed")
 
-        logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
+        rich_logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
 
     except Exception as e: 
-        logging.error(f"An error occurred during execution: {e}") 
+        rich_logging.error(f"An error occurred during execution: {e}") 
+    
+
+# main function 
+async def main():
+
+    if len(sys.argv) != 2:
+        await execute()
+    elif len(sys.argv) == 2:
+        prompt = sys.argv[1]
+        await execute(prompt)
 
 if __name__ == "__main__": 
     asyncio.run(main()) 
