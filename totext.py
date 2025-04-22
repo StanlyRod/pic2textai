@@ -96,8 +96,6 @@ async def analyze_image(image_path: str, prompt: str) -> str:
         rich_logging.error(f"Failed to analyze image {image_path}: {e}") 
         return "Failed to analyze image" 
 
- #if len(sys.argv) > 3:
-
 
 async def execute(prompt: str = "Extract all the text from this image"):
     try: 
@@ -147,12 +145,15 @@ async def execute(prompt: str = "Extract all the text from this image"):
 # main function 
 async def main():
 
-    if len(sys.argv) != 2:
+    if len(sys.argv) > 2:
+        rich_logging.error("Too many arguments provided. Please provide only one argument for the prompt.")
+        return
+    elif len(sys.argv) != 2:
         await execute()
-    elif len(sys.argv) == 2:
+    else:
         prompt = sys.argv[1]
         await execute(prompt)
-
+ 
 if __name__ == "__main__": 
     asyncio.run(main()) 
 
