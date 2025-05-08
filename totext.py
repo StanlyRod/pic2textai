@@ -96,8 +96,40 @@ async def analyze_image(image_path: str, prompt: str) -> str:
     except Exception as e: 
         rich_logging.error(f"Failed to analyze image {image_path}: {e}") 
         return "Failed to analyze image" 
+    
+
+# read the text file
+async def read_text_file(file_path):
+    try:
+        async with AIOFile(file_path, 'r') as text_file:
+            # Read the content of the file
+            content = await text_file.read()
+        return content
+    except FileNotFoundError:
+        rich_logging.error(f"File not found: {file_path}. Please ensure the file exists.")
+        return ""
+    except PermissionError:
+        rich_logging.error(f"Permission denied: Unable to read the file {file_path}. Please check file permissions.")
+        return ""
+    except Exception as e:
+        rich_logging.error(f"An error occurred while reading the file {file_path}: {e}")
+        return ""
+    
+
+# function to copy text to clipboard
+async def copy_to_clipboard():
+    # Read the text file
+    content = await read_text_file(file_path)
+    if content:
+        # Copy the content to clipboard
+        pyperclip.copy(content)
+        rich_logging.info("Text copied to clipboard successfully.")
+    else:  
+        rich_logging.error("No content to copy to clipboard.")
+        return
 
 
+# function to execute the main logic
 async def execute(prompt: str = "Extract all the text from this image"):
     try: 
         #joining the current directory with the folder
@@ -139,6 +171,9 @@ async def execute(prompt: str = "Extract all the text from this image"):
 
         rich_logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
 
+        # Copy the text to clipboard
+        await copy_to_clipboard()
+
     except Exception as e: 
         rich_logging.error(f"An error occurred during execution: {e}") 
     
@@ -157,45 +192,3 @@ async def main():
  
 if __name__ == "__main__": 
     asyncio.run(main()) 
-
-
-
-# async def read_text_file(file_path):
-#     try:
-#         async with AIOFile(file_path, 'r') as text_file:
-#             # Read the content of the file
-#             content = await text_file.read()
-#         return content
-#     except FileNotFoundError:
-#         rich_logging.error(f"File not found: {file_path}. Please ensure the file exists.")
-#         return ""
-#     except PermissionError:
-#         rich_logging.error(f"Permission denied: Unable to read the file {file_path}. Please check file permissions.")
-#         return ""
-#     except Exception as e:
-#         rich_logging.error(f"An error occurred while reading the file {file_path}: {e}")
-#         return ""
-
-
-# async def main():
-#     # Read the text file
-#     content = await read_text_file(file_path)
-    
-#     # Check if content is not empty
-#     if content:
-#         # Copy the content to clipboard
-#         pyperclip.copy(content)
-#         rich_logging.info("Text copied to clipboard successfully.")
-#     else:
-#         rich_logging.error("No content to copy to clipboard.")
-#         return
-#     # Print the content to the console
-#     print(content)
-#     # Print a message indicating that the content has been copied
-#     print("Text copied to clipboard successfully.")
-#     # Print a message indicating that the content has been printed
-#     print("Text printed to console successfully.")
-#     # Print a message indicating that the content has been printed
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
