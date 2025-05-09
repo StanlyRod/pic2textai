@@ -8,6 +8,7 @@ from rich import print
 from rich.logging import RichHandler
 import sys 
 from openai import OpenAI  # type: ignore 
+from pathlib import Path
 
 
 # # Configure logging 
@@ -176,6 +177,16 @@ def rename_images_with_enumeration(folder_path: str):
         rich_logging.error(f"An unexpected error occurred: {e}")
 
 
+# Extracts the name of the file without its extension from the given file path.
+async def get_image_name_without_extension(file_path: str) -> str:
+    try:
+        path = Path(file_path)
+        return path.stem
+    except Exception as e:
+        rich_logging.error(f"An error occurred while extracting the file name: {e}")
+        return ""
+
+
 # function to execute the main logic
 async def execute(prompt: str = "Extract all the text from this image"):
     try: 
@@ -243,6 +254,27 @@ async def main():
  
 if __name__ == "__main__": 
     asyncio.run(main()) 
+
+
+
+
+
+
+
+cwd = os.getcwd()
+
+full_path = os.path.join(cwd, "ocr_analyzer.py")
+
+
+
+
+
+
+
+
+
+
+
 
 
 #===========================================================================================================
