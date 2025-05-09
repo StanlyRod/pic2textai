@@ -130,7 +130,7 @@ async def copy_to_clipboard():
         return
 
 
-# Function to rename images in the specified folder with enumeration
+# Function to rename images in the with enumeration
 def rename_images_with_enumeration(folder_path: str):
     try:
         # Check if the images folder exists
