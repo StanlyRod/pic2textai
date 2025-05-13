@@ -7,7 +7,7 @@ import pyperclip # type: ignore
 from rich import print
 from rich.logging import RichHandler
 import sys 
-from openai import OpenAI  # type: ignore 
+from openai import AsyncOpenAI  # type: ignore 
 from pathlib import Path
 
 
@@ -23,8 +23,8 @@ current_directory = os.getcwd()
 # File name
 filename = "extractedtext.txt"
 
-# joining the current directory with the filename
-file_path = os.path.join(current_directory, filename) 
+# joining the current directory with the text filename
+text_file_path = os.path.join(current_directory, filename) 
  
  # get openai api key from environmental variable
 openaikey = os.getenv("OPENAIKEY") 
@@ -33,7 +33,7 @@ openaikey = os.getenv("OPENAIKEY")
 if not openaikey: 
     raise EnvironmentError("OPENAIKEY environment variable not set") 
 
-client = OpenAI(api_key=openaikey) 
+client = AsyncOpenAI(api_key=openaikey) 
 
 # function to append text to a text file 
 async def append_to_file(path: str, text: str): 
@@ -73,7 +73,7 @@ async def analyze_image(image_path: str, prompt: str) -> str:
         if not base64_image: 
             return "Failed to encode image" 
         
-        response = client.chat.completions.create( 
+        response = await client.chat.completions.create( 
             model="gpt-4o", 
             messages=[ 
                 { 
@@ -121,7 +121,7 @@ async def read_text_file(file_path):
 # function to copy text to clipboard
 async def copy_to_clipboard():
     # Read the text file
-    content = await read_text_file(file_path)
+    content = await read_text_file(text_file_path)
     if content:
         # Copy the content to clipboard
         pyperclip.copy(content)
@@ -178,13 +178,28 @@ def rename_images_with_enumeration(folder_path: str):
 
 
 # Extracts the name of the file without its extension from the given file path.
-async def get_image_name_without_extension(file_path: str) -> str:
+async def get_image_name_without_extension(image_name_path: str) -> str:
     try:
-        path = Path(file_path)
+        path = Path(image_name_path)
         return path.stem
     except Exception as e:
         rich_logging.error(f"An error occurred while extracting the file name: {e}")
         return ""
+    
+
+async def sort_dictionary_by_keys(input_dict):
+    sorted_dict = dict(sorted(input_dict.items()))
+    values = sorted_dict.values()
+    try:
+        return values
+        # for each_value in values:
+        #     await append_to_file(text_file_path, each_value)
+    except Exception as e:
+        print(f"An error occurred while writing to the file: {e}")
+        return ""
+
+
+ocr_dictionary = {}
 
 
 # function to execute the main logic
@@ -207,31 +222,78 @@ async def execute(prompt: str = "Extract all the text from this image"):
         
         rename_images_with_enumeration(images_folder)
 
+        # List all image files in the specified folder with extensions .png, .jpeg, or .jpg
+        all_images = [each_image for each_image in os.listdir(images_folder) if each_image.lower().endswith((".png", ".jpeg", ".jpg"))]
+
         # Count the total number of files in the "imagesfolder" directory
-        total_images =  len(os.listdir(images_folder))
+        total_images =  len(all_images)
 
         # Log the total number of images to be analyzed
         rich_logging.info(f"Total images to be analyze: {total_images}")
 
-        count_images = 0 
+        #count_images = 0 
+
+
+        async def process_image(image_file:str):
+            try:
+                image_path = os.path.join(images_folder, image_file)
+                result = await analyze_image(image_path, prompt)
+
+                # Get the name of the image without its extension
+                image_name = await get_image_name_without_extension(image_path)
+
+                # Store the result in the dictionary with the image name as the key
+                ocr_dictionary[int(image_name)] = result
+
+                rich_logging.info(f" Analyzed image: {image_file}")
+            except Exception as e:
+                rich_logging.error(f"An error occurred while processing {image_file}: {e}")
+
+
+        # Create a list of tasks for processing each image
+        tasks = []
+
+        # Iterate through each image and create a task for it
+        for each_image in all_images:
+            tasks.append(process_image(each_image))
+
+        # Run all tasks concurrently
+        await asyncio.gather(*tasks)
+
+        sorted_dictionary = await sort_dictionary_by_keys(ocr_dictionary)
+
+        # Append the sorted results to the text file
+        for each_value in sorted_dictionary:
+            await append_to_file(text_file_path, each_value)
+
+            
         
         # Iterate through each file in the "imagesfolder" directory
-        for each_image in os.listdir(images_folder): 
-            # Check if the file has a ".png" extension
-            if each_image.endswith(".png"): 
+        # for each_image in os.listdir(images_folder): 
+        #     # Check if the file has a ".png" extension
+        #     if each_image.endswith(".png"): 
 
-                image_path = os.path.join(images_folder, each_image)
-                # Analyze the image with the analyze_image function 
-                result = await analyze_image(image_path, prompt) 
-                # Append the result to a text file
-                await append_to_file(file_path, result) 
+        #         image_path = os.path.join(images_folder, each_image)
+        #         # Analyze the image with the analyze_image function 
+        #         result = await analyze_image(image_path, prompt) 
 
-                # Increment the counter for each processed image
-                count_images += 1
+        #         # Get the name of the image without its extension
+        #         image_name = await get_image_name_without_extension(image_path)
 
-                rich_logging.info(f"Image - {count_images} - analyzed")
+        #         # Store the result in the dictionary with the image name as the key
+        #         ocr_dictionary[int(image_name)] = result
 
-        rich_logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
+
+        #         # Append the result to a text file
+        #         #await append_to_file(file_path, result) 
+
+        #         # Increment the counter for each processed image
+        #         count_images += 1
+
+        #         rich_logging.info(f"Image - {count_images} - analyzed")
+
+        #rich_logging.info(f"A total of {count_images} images has been processed successfully" if count_images > 0 else "No images were analyzed")
+
 
         # Copy the text to clipboard
         await copy_to_clipboard()
@@ -253,7 +315,11 @@ async def main():
         await execute(prompt)
  
 if __name__ == "__main__": 
+    import time
+    start_time = time.perf_counter()
     asyncio.run(main()) 
+    end_time = time.perf_counter() - start_time
+    rich_logging.info(f"Execution time: {end_time:.2f} seconds")
 
 
 
@@ -261,9 +327,9 @@ if __name__ == "__main__":
 
 
 
-cwd = os.getcwd()
+# cwd = os.getcwd()
 
-full_path = os.path.join(cwd, "ocr_analyzer.py")
+# full_path = os.path.join(cwd, "ocr_analyzer.py")
 
 
 
