@@ -95,7 +95,7 @@ async def analyze_image(image_path: str, prompt: str) -> str:
                         {"type": "text", "text": f"{prompt}"}, 
                         { 
                             "type": "image_url", 
-                            "image_url": {"url": f"data:image/png;base64,{base64_image}"}, 
+                            "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}, 
                         }, 
                     ], 
                 } 
