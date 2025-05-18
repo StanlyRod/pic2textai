@@ -44,22 +44,6 @@ if not openaikey:
     raise EnvironmentError("OPENAIKEY environment variable not set") 
 
 client = AsyncOpenAI(api_key=openaikey) 
-
-# function to append text to a text file 
-async def append_to_file(path: str, text: str): 
-    try: 
-        async with AIOFile(path, "a") as afp: 
-            writer = Writer(afp) 
-            await writer(f"{text}\n") 
-            await afp.fsync()
-        log_info(f"Text appended to {path}") 
-    except PermissionError:
-        log_error(f"Permission denied: Unable to open file or the file is currently in use {path}. Please check file permissions.")
-    except FileNotFoundError:
-        log_error(f"File not found: {path}. Please ensure the file exists.")
-    except Exception as e: 
-        log_error(f"Failed to append to file: {e}") 
-
  
 
 # encode image to base64
@@ -73,7 +57,6 @@ async def encode_image(image_path: str) -> str:
         return "" 
 
  
-
 # Asynchronous function to process the OpenAI API request 
 async def analyze_image(image_path: str, prompt: str) -> str: 
     try: 
@@ -106,12 +89,32 @@ async def analyze_image(image_path: str, prompt: str) -> str:
 
         text_response = text_response.encode("utf-8").decode("utf-8", errors="replace") 
 
+        # # Check for the refusal message
+        # if "I'm unable to assist with that" in text_response:
+        #     log_error(f"OpenAI refused to process this image {image_path}.")
+        #     return "OpenAI could not process this image."
+
         return text_response.replace("�", "'") 
     
     except Exception as e: 
         log_error(f"Failed to analyze image {image_path}: {e}") 
         return "Failed to analyze image" 
-    
+
+
+# function to append text to a text file 
+async def append_to_file(path: str, text: str): 
+    try: 
+        async with AIOFile(path, "a") as afp: 
+            writer = Writer(afp) 
+            await writer(f"{text}\n") 
+            await afp.fsync()
+    except PermissionError:
+        log_error(f"Permission denied: Unable to open file or the file is currently in use {path}. Please check file permissions.")
+    except FileNotFoundError:
+        log_error(f"File not found: {path}. Please ensure the file exists.")
+    except Exception as e: 
+        log_error(f"Failed to append to file: {e}") 
+
 
 # read the text file
 async def read_text_file(file_path):
@@ -144,50 +147,94 @@ async def copy_to_clipboard():
         return
 
 
-# Function to rename images in the with enumeration
+
+SUPPORTED_IMAGE_FORMATS = (".png", ".jpeg", ".jpg")
+
 async def rename_images_with_enumeration(folder_path: str):
     try:
-        # Check if the images folder exists
         if not os.path.exists(folder_path):
-            # Raise an error if the folder does not exist
             raise FileNotFoundError(f"Folder not found: {folder_path}")
 
-        # Initialize a counter for renaming images
+        # Get and sort the image files by last modified time (optional for consistent order)
+        files = [
+            f for f in os.listdir(folder_path)
+            if f.lower().endswith(SUPPORTED_IMAGE_FORMATS)
+        ]
+        files.sort(key=lambda f: os.path.getmtime(os.path.join(folder_path, f)))
+
         count_images = 1
 
-        # Iterate through the files in the folder
-        for each_image in os.listdir(folder_path):
-            # Process only files with a ".png" extension
-            if each_image.endswith((".png", ".jpeg", ".jpg")):
-                try:
-                    # Full path to the old image
-                    old_path = os.path.join(folder_path, each_image)
+        for each_image in files:
+            try:
+                old_path = os.path.join(folder_path, each_image)
+                extension = os.path.splitext(each_image)[1].lower()
+                new_name = f"{count_images}{extension}"
+                new_path = os.path.join(folder_path, new_name)
 
-                    # Generate a new name for the image (like: "1.png", "2.png", etc.)
-                    new_name = f"{count_images}.png"
-                    new_path = os.path.join(folder_path, new_name)
+                os.rename(old_path, new_path)
+                log_info(f"Renamed {each_image} → {new_name}")
+                count_images += 1
 
-                    # Rename the file in place
-                    os.rename(old_path, new_path)
+            except FileNotFoundError:
+                log_error(f"File not found: {each_image}. Skipping...")
+            except PermissionError:
+                log_error(f"Permission denied: Unable to rename {each_image}. Skipping...")
+            except Exception as e:
+                log_error(f"Error renaming {each_image}: {e}")
 
-                    # Log the renaming operation
-                    log_info(f"Renamed {each_image} to {new_name}")
-                    log_info("")
-
-                    # Increment count 
-                    count_images += 1
-                except FileNotFoundError:
-                    log_error(f"File not found: {each_image}. Skipping...")
-                except PermissionError:
-                    log_error(f"Permission denied: Unable to rename {each_image}. Skipping...")
-                except Exception as e:
-                    log_error(f"An error occurred while renaming {each_image}: {e}")
     except FileNotFoundError as e:
-        log_error(e)
+        log_error(str(e))
     except PermissionError:
         log_error(f"Permission denied: Unable to access the folder {folder_path}.")
     except Exception as e:
-        log_error(f"An unexpected error occurred: {e}")
+        log_error(f"Unexpected error: {e}")
+
+#=====================================================================================
+
+# # Function to rename images in the with enumeration
+# async def rename_images_with_enumeration(folder_path: str):
+#     try:
+#         # Check if the images folder exists
+#         if not os.path.exists(folder_path):
+#             # Raise an error if the folder does not exist
+#             raise FileNotFoundError(f"Folder not found: {folder_path}")
+
+#         # Initialize a counter for renaming images
+#         count_images = 1
+
+#         # Iterate through the files in the folder
+#         for each_image in os.listdir(folder_path):
+#             # Process only files with this extensions png jpeg jpg
+#             if each_image.endswith((".png", ".jpeg", ".jpg")):
+#                 try:
+#                     # Full path to the old image
+#                     old_path = os.path.join(folder_path, each_image)
+
+#                     # Generate a new name for the image (like: "1.png", "2.png", etc.)
+#                     new_name = f"{count_images}.png"
+#                     new_path = os.path.join(folder_path, new_name)
+
+#                     # Rename the file in place
+#                     os.rename(old_path, new_path)
+
+#                     # Log the renaming operation
+#                     log_info(f"Renamed {each_image} to {new_name}")
+#                     log_info("")
+
+#                     # Increment count 
+#                     count_images += 1
+#                 except FileNotFoundError:
+#                     log_error(f"File not found: {each_image}. Skipping...")
+#                 except PermissionError:
+#                     log_error(f"Permission denied: Unable to rename {each_image}. Skipping...")
+#                 except Exception as e:
+#                     log_error(f"An error occurred while renaming {each_image}: {e}")
+#     except FileNotFoundError as e:
+#         log_error(e)
+#     except PermissionError:
+#         log_error(f"Permission denied: Unable to access the folder {folder_path}.")
+#     except Exception as e:
+#         log_error(f"An unexpected error occurred: {e}")
 
 
 # Extracts the name of the file without its extension from the given file path.
@@ -266,6 +313,9 @@ async def execute(prompt: str = "Extract all the text from this image"):
         # Append the sorted results to the text file
         for each_value in sorted_dictionary:
             await append_to_file(text_file_path, each_value)
+
+        log_info(f"Results have been written to {text_file_path} successfully.")
+        log_info("")
 
         # Copy the text to clipboard
         await copy_to_clipboard()
