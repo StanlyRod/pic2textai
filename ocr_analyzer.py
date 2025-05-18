@@ -2,13 +2,15 @@ from aiofile import AIOFile, Writer  # type: ignore
 import asyncio 
 import os 
 import base64 
-import logging
 import pyperclip # type: ignore
+import logging_module as lm
+import logging
 from rich import print
 from rich.logging import RichHandler
 import sys 
 from openai import AsyncOpenAI  # type: ignore 
 from pathlib import Path
+import text_utils as tu
 
 
 # # Configure logging 
@@ -99,53 +101,6 @@ async def analyze_image(image_path: str, prompt: str) -> str:
     except Exception as e: 
         log_error(f"Failed to analyze image {image_path}: {e}") 
         return "Failed to analyze image" 
-
-
-# function to append text to a text file 
-async def append_to_file(path: str, text: str): 
-    try: 
-        async with AIOFile(path, "a") as afp: 
-            writer = Writer(afp) 
-            await writer(f"{text}\n") 
-            await afp.fsync()
-    except PermissionError:
-        log_error(f"Permission denied: Unable to open file or the file is currently in use {path}. Please check file permissions.")
-    except FileNotFoundError:
-        log_error(f"File not found: {path}. Please ensure the file exists.")
-    except Exception as e: 
-        log_error(f"Failed to append to file: {e}") 
-
-
-# read the text file
-async def read_text_file(file_path):
-    try:
-        async with AIOFile(file_path, 'r') as text_file:
-            # Read the content of the file
-            content = await text_file.read()
-        return content
-    except FileNotFoundError:
-        log_error(f"File not found: {file_path}. Please ensure the file exists.")
-        return ""
-    except PermissionError:
-        log_error(f"Permission denied: Unable to read the file {file_path}. Please check file permissions.")
-        return ""
-    except Exception as e:
-        log_error(f"An error occurred while reading the file {file_path}: {e}")
-        return ""
-    
-
-# function to copy text to clipboard
-async def copy_to_clipboard():
-    # Read the text file
-    content = await read_text_file(text_file_path)
-    if content:
-        # Copy the content to clipboard
-        pyperclip.copy(content)
-        log_info("Text copied to clipboard successfully.")
-    else:  
-        log_error("No content to copy to clipboard.")
-        return
-
 
 
 SUPPORTED_IMAGE_FORMATS = (".png", ".jpeg", ".jpg")
@@ -318,7 +273,7 @@ async def execute(prompt: str = "Extract all the text from this image"):
         log_info("")
 
         # Copy the text to clipboard
-        await copy_to_clipboard()
+        await copy_to_clipboard(text_file_path)
 
     except Exception as e: 
         log_error(f"An error occurred during execution: {e}") 
