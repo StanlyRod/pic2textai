@@ -173,6 +173,8 @@ cython_debug/
 
 extractedText.txt
 
+oldocrcode.py
+
 .idea/
 
 imagesfolder/

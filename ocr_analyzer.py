@@ -9,7 +9,7 @@ from openai import AsyncOpenAI  # type: ignore
 from pathlib import Path
 import text_utils as tu
 import time
-
+from PIL import Image, ImageOps
 
 # Get the current working directory 
 current_directory = os.getcwd() 
@@ -31,7 +31,7 @@ if not openaikey:
 client = AsyncOpenAI(api_key=openaikey) 
 
 # Rate limiting configuration
-IMAGES_PER_SECOND = 20
+IMAGES_PER_SECOND = 30
 SEMAPHORE_LIMIT = IMAGES_PER_SECOND
 RATE_LIMIT_DELAY = 0.05 / IMAGES_PER_SECOND
 
@@ -100,6 +100,7 @@ async def analyze_image(image_path: str, prompt: str) -> str:
 
 SUPPORTED_IMAGE_FORMATS = (".png", ".jpeg", ".jpg")
 
+#rename all images in ascending sequential order
 async def rename_images_with_enumeration(folder_path: str):
     try:
         if not os.path.exists(folder_path):
@@ -184,23 +185,61 @@ async def process_image_with_rate_limit(image_file: str, images_folder: str, pro
 
         lm.log_info(f"Image: {image_file} has been processed successfully.")
         lm.log_info("")
-        
     except Exception as e:
         lm.log_error(f"An error occurred while processing {image_file}: {e}")
+
+
+#convert all images to grayscale
+async def convert_images_to_grayscale():
+    images_folder = os.path.join(current_directory, "imagesfolder")
+
+    if not os.path.exists(images_folder):
+        raise FileNotFoundError(f"Folder not found: {images_folder}")
+
+    supported_ext = (".png", ".jpg", ".jpeg")
+    # files = [f for f in os.listdir(images_folder) if f.lower().endswith(supported_ext)]
+
+    files = sorted([f for f in os.listdir(images_folder) if f.lower().endswith(supported_ext)],
+    key=lambda f: os.path.getmtime(os.path.join(images_folder, f)))
+
+    if not files:
+        lm.log_info("No supported image files found in imagesfolder.")
+        return
+
+    for filename in files:
+        try:
+            file_path = os.path.join(images_folder, filename)  # full path to file
+
+            if os.path.isdir(file_path):
+                lm.log_info(f"Skipping directory named like a file: {file_path}")
+                continue
+
+            # Extract filename without extension and extension
+            name_without_ext, ext = os.path.splitext(filename)
+            new_filename = f"{name_without_ext}_grayscaled{ext}"
+            new_file_path = os.path.join(images_folder, new_filename)
+
+            with Image.open(file_path) as img:
+                gray = ImageOps.grayscale(img)
+                gray.save(new_file_path)  # save with new name
+            
+            # Remove the original file
+            os.remove(file_path)
+
+            lm.log_info(f"Converted and renamed to: {new_file_path}")
+        except PermissionError as e:
+            lm.log_info(f"Permission error for {filename}: {e}. Is the file open in another app?")
+        except OSError as e:
+            lm.log_info(f"PIL/OSError for {filename}: {e}")
+        except Exception as e:
+            lm.log_info(f"Error processing {filename}: {e}")
+
 
 
 # function to execute the main logic
 async def execute(prompt: str = "Extract only all the text from this image"):
     try: 
         ocr_dictionary = {}
-
-        #=================================================================
-        #joining the current directory with the folder
-        create_directory = os.path.join(current_directory, "imagesfolder")
-
-        # Create the directory by skipping errors
-        os.makedirs(create_directory, exist_ok=True)
-        #=================================================================
 
         images_folder = os.path.join(current_directory, "imagesfolder") 
 
@@ -259,15 +298,32 @@ async def execute(prompt: str = "Extract only all the text from this image"):
 
 # main function 
 async def main():
-    if len(sys.argv) > 2:
-        lm.log_error("Too many arguments provided. Please provide only one argument for the prompt.")
-        return
-    elif len(sys.argv) != 2:
-        await execute()
-    else:
-        prompt = sys.argv[1]
-        await execute(prompt)
- 
+   
+   if len(sys.argv) == 1:
+    await execute()  #No prompt provided — run with default
+
+   elif len(sys.argv) == 2 and sys.argv[1].lower() != "true":
+    prompt = sys.argv[1]
+    await execute(prompt) #One prompt provided, use the prompt
+
+   elif len(sys.argv) == 2 and sys.argv[1].lower() == "true":
+       await convert_images_to_grayscale() #Convert to grayscale then run with default
+       await execute()
+
+   elif len(sys.argv) == 3 and sys.argv[2].lower() == "true"   :
+       prompt = sys.argv[1] #Convert to grayscale then run with custom prompt
+       await convert_images_to_grayscale()
+       await execute(prompt)
+   else:
+       lm.log_error("Invalid arguments provided.")
+       lm.log_error("Usage: python ocr_analyzer.py [prompt] [grayscale_flag]")
+       lm.log_error("Examples:")
+       lm.log_error("python ocr_analyzer.py    # Default prompt")
+       lm.log_error("python ocr_analyzer.py 'extract all the text' # Custom prompt")
+       lm.log_error("python ocr_analyzer.py true               # Grayscale + default prompt")
+       lm.log_error("python ocr_analyzer.py 'extract' true     # Custom prompt + grayscale")
+       sys.exit(1)
+    
 if __name__ == "__main__": 
     start_time = time.perf_counter()
     asyncio.run(main()) 
