@@ -31,9 +31,9 @@ if not openaikey:
 client = AsyncOpenAI(api_key=openaikey) 
 
 # Rate limiting configuration
-IMAGES_PER_SECOND = 30
+IMAGES_PER_SECOND = 10
 SEMAPHORE_LIMIT = IMAGES_PER_SECOND
-RATE_LIMIT_DELAY = 0.05 / IMAGES_PER_SECOND
+RATE_LIMIT_DELAY = 0.10 / IMAGES_PER_SECOND
 
 # Create semaphore for rate limiting
 rate_limiter = asyncio.Semaphore(SEMAPHORE_LIMIT)
@@ -92,7 +92,6 @@ async def analyze_image(image_path: str, prompt: str) -> str:
             text_response = text_response.encode("utf-8").decode("utf-8", errors="replace") 
 
             return text_response.replace("�", "'") 
-        
         except Exception as e: 
             lm.log_error(f"Failed to analyze image {image_path}: {e}") 
             return "Failed to analyze image" 
@@ -300,14 +299,14 @@ async def execute(prompt: str = "Extract only all the text from this image"):
 async def main():
    
    if len(sys.argv) == 1:
-    await execute()  #No prompt provided — run with default
+    await execute()  #No prompt provided — run with default prompt
 
    elif len(sys.argv) == 2 and sys.argv[1].lower() != "true":
     prompt = sys.argv[1]
     await execute(prompt) #One prompt provided, use the prompt
 
    elif len(sys.argv) == 2 and sys.argv[1].lower() == "true":
-       await convert_images_to_grayscale() #Convert to grayscale then run with default
+       await convert_images_to_grayscale() #Convert to grayscale then run with default prompt
        await execute()
 
    elif len(sys.argv) == 3 and sys.argv[2].lower() == "true"   :

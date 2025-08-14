@@ -1,7 +1,16 @@
 # OCR Analyzer
 
-A powerful Python script for extracting text from images using OpenAI's GPT-4 Vision API. 
-This tool processes multiple images concurrently with rate limiting and provides various output options.
+A powerful Python script for extracting text from images using OpenAI's GPT-4 Vision API.
+
+This project is specifically designed for users who want to extract text from:
+
+* **Websites and digital platforms that disable copy-paste functionality**
+* **E-books or online readers like Amazon Kindle**, where copying text is not allowed
+
+The Python script processes multiple screenshots or image files concurrently with built-in rate limiting and flexible output options. It's ideal for digitizing hard-to-access text for study, research, or offline reference.
+
+
+
 
 ## ⚡Features
 
@@ -24,8 +33,8 @@ This tool processes multiple images concurrently with rate limiting and provides
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd ocr-analyzer
+git clone https://github.com/StanlyRod/pic2textai.git
+cd pic2textai
 ```
 
 2. Install dependencies:
@@ -83,7 +92,7 @@ source ~/.zshrc
 ## 📁 File Structure
 
 ```
-ocr-analyzer/
+pic2textai/
 ├── ocr_analyzer.py      # Main application file
 ├── logging_module.py    # Rich logging configuration
 ├── text_utils.py        # Text file operations and clipboard utilities
@@ -156,9 +165,9 @@ python ocr_analyzer.py "Extract only the main text content" true
 
 ### Rate Limiting
 ```python
-IMAGES_PER_SECOND = 30          # Maximum processing rate
-SEMAPHORE_LIMIT = 30            # Concurrent request limit
-RATE_LIMIT_DELAY = 0.05/30      # Delay between requests
+IMAGES_PER_SECOND = 10          # Maximum processing rate
+SEMAPHORE_LIMIT = 10            # Concurrent request limit
+RATE_LIMIT_DELAY = 0.10/10      # Delay between requests
 ```
 
 ### OpenAI Model
@@ -209,7 +218,7 @@ The application includes comprehensive error handling for:
 
 ```
 2025-01-15 10:30:45 - INFO - Total images to be analyzed: 5
-2025-01-15 10:30:45 - INFO - Processing at 30 images per second
+2025-01-15 10:30:45 - INFO - Processing at 10 images per second
 2025-01-15 10:30:45 - INFO - Renamed IMG_001.jpg → 1.jpg
 2025-01-15 10:30:45 - INFO - Renamed IMG_002.jpg → 2.jpg
 2025-01-15 10:30:46 - INFO - Image: 1.jpg has been processed successfully.
@@ -252,9 +261,7 @@ The application includes comprehensive error handling for:
 4. Add tests if applicable
 5. Submit a pull request
 
-## License
 
-[Add your license information here]
 
 ## Dependencies
 
@@ -264,3 +271,8 @@ See `requirements.txt` for complete list. Key dependencies:
 - `rich`: Enhanced console output
 - `pillow`: Image processing
 - `pyperclip`: Clipboard operations
+
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
