@@ -15,7 +15,7 @@ The Python script processes multiple screenshots or image files concurrently wit
 ## ⚡Features
 
 - **Batch Image Processing**: Process multiple images in a folder simultaneously
-- **Rate Limiting**: Built-in rate limiting (30 images per second) to respect API limits
+- **Rate Limiting**: Built-in rate limiting (10 images per second) to respect API limits
 - **Grayscale Conversion**: Optional image preprocessing to grayscale for better OCR results
 - **Custom Prompts**: Use custom prompts for specialized text extraction
 - **Auto-renaming**: Automatically renames images with enumeration for consistent processing
